@@ -29,7 +29,7 @@ else:
     print(f"ℹ️ '{MODEL_PATH}' not found in current directory. Running in simulation mode.")
 
 
-def preprocess_image(image_bytes, target_size=(224, 224)):
+def preprocess_image(image_bytes, target_size=(128, 128)):
     """Convert raw image bytes to normalized numpy array for CNN model."""
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     img = img.resize(target_size)
@@ -92,4 +92,7 @@ def health():
 
 if __name__ == '__main__':
     print("🚀 Starting Flask Face Detection API on http://127.0.0.1:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+
+    if __name__ == '__main__':
+        port = int(os.environ.get("PORT", 5000))
+        app.run(host='0.0.0.0', port=port)
