@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time Face Detection System powered by a CNN Deep Learning Model and Python Flask API. Responsive, fast, and modern web application.">
+    <title>Face Detection System using CNN</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons for clean UI elements -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-background">
+        <div class="glow-sphere sphere-1"></div>
+        <div class="glow-sphere sphere-2"></div>
+    </div>
+
+    <div class="main-container">
+        <!-- Header Section -->
+        <header class="app-header">
+            <div class="header-badge">
+                <i class="fa-solid fa-brain"></i>
+                <span>CNN AI Vision</span>
+            </div>
+            <h1 class="app-title">Face Detection System <span class="gradient-text">using CNN</span></h1>
+            <p class="app-description">
+                Real-time deep learning facial detection. Captures live video stream from your browser, analyzes frames with a CNN backend model, and delivers instant predictions.
+            </p>
+        </header>
+
+        <!-- Notification / Error Banner -->
+        <div id="errorBanner" class="error-banner hidden" role="alert">
+            <div class="error-content">
+                <i id="errorIcon" class="fa-solid fa-triangle-exclamation"></i>
+                <span id="errorMessage">Camera access error occurred.</span>
+            </div>
+            <button id="closeErrorBtn" class="icon-btn-sm" aria-label="Close message">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Dashboard Grid Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- Left Panel: Webcam Stream -->
+            <section class="card webcam-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-video"></i>
+                        <h2>Live Webcam Preview</h2>
+                    </div>
+                    <div class="live-indicator-wrap" id="liveIndicatorWrap">
+                        <span class="pulse-dot grey" id="statusDot"></span>
+                        <span class="live-text" id="liveText">STANDBY</span>
+                    </div>
+                </div>
+
+                <div class="webcam-viewport-wrapper">
+                    <!-- Target Overlay Box & Grid -->
+                    <div class="viewport-overlay" id="viewportOverlay">
+                        <div class="scan-grid"></div>
+                        <div class="face-target-box" id="targetBox">
+                            <div class="corner top-left"></div>
+                            <div class="corner top-right"></div>
+                            <div class="corner bottom-left"></div>
+                            <div class="corner bottom-right"></div>
+                        </div>
+                        <div class="scan-line" id="scanLine"></div>
+                    </div>
+
+                    <!-- Placeholder UI when camera is off -->
+                    <div class="webcam-placeholder" id="webcamPlaceholder">
+                        <div class="placeholder-icon-wrap">
+                            <i class="fa-solid fa-camera"></i>
+                        </div>
+                        <p class="placeholder-title">Camera Inactive</p>
+                        <p class="placeholder-sub">Click <strong>Start Camera</strong> below to enable live recognition.</p>
+                    </div>
+
+                    <!-- Live Video Element -->
+                    <video id="webcamVideo" autoplay playsinline muted class="webcam-video hidden"></video>
+
+                    <!-- Hidden Canvas for Frame Capture -->
+                    <canvas id="frameCanvas" class="hidden-canvas"></canvas>
+
+                    <!-- Processing Overlay Spinner -->
+                    <div class="api-loading-overlay hidden" id="apiLoadingOverlay">
+                        <div class="spinner"></div>
+                        <span>Analyzing frame...</span>
+                    </div>
+                </div>
+
+                <!-- Stream Control Stats Bar -->
+                <div class="viewport-stats-bar">
+                    <div class="stat-item">
+                        <span class="stat-label">Resolution</span>
+                        <span class="stat-value" id="resVal">0x0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Latency</span>
+                        <span class="stat-value" id="latencyVal">0 ms</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Interval</span>
+                        <span class="stat-value">300 ms</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Frames Sent</span>
+                        <span class="stat-value" id="frameCountVal">0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Status & Confidence Score -->
+            <section class="card status-card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-chart-simple"></i>
+                        <h2>Detection Results</h2>
+                    </div>
+                    <button class="settings-toggle-btn" id="settingsToggleBtn" title="Configure API Settings">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
+
+                <div class="status-content-body">
+                    <!-- Status Badge Container -->
+                    <div class="status-badge-container">
+                        <span class="status-badge standby" id="detectionBadge">
+                            <i class="fa-solid fa-circle-notch fa-spin hidden" id="badgeSpinner"></i>
+                            <i class="fa-solid fa-pause" id="badgeIcon"></i>
+                            <span id="badgeText">Awaiting Input</span>
+                        </span>
+                    </div>
+
+                    <!-- Confidence Meter Ring / Bar -->
+                    <div class="confidence-section">
+                        <div class="confidence-header">
+                            <span class="confidence-title">CNN Model Confidence</span>
+                            <span class="confidence-percent" id="confidenceValue">0.0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="confidenceBar" style="width: 0%;"></div>
+                        </div>
+                        <p class="confidence-hint" id="confidenceHint">
+                            Start the camera to receive real-time confidence scores from the Flask backend.
+                        </p>
+                    </div>
+
+                    <!-- Server Connection Details Box -->
+                    <div class="info-box">
+                        <div class="info-row">
+                            <span class="info-label"><i class="fa-solid fa-server"></i> API Endpoint:</span>
+                            <span class="info-value text-truncate" id="activeApiUrlDisplay">http://127.0.0.1:5000/predict</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label"><i class="fa-solid fa-wifi"></i> Server Status:</span>
+                            <span class="info-value" id="serverHealthDisplay">
+                                <span class="dot-indicator grey" id="serverHealthDot"></span>
+                                <span id="serverHealthText">Unknown</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Controls Bar -->
+        <footer class="controls-card card">
+            <div class="controls-group">
+                <button id="startCamBtn" class="btn btn-primary">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Start Camera</span>
+                </button>
+                <button id="stopCamBtn" class="btn btn-danger" disabled>
+                    <i class="fa-solid fa-stop"></i>
+                    <span>Stop Camera</span>
+                </button>
+            </div>
+            
+            <div class="secondary-controls">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="demoModeToggle">
+                    <span class="slider round"></span>
+                    <span class="toggle-label"><i class="fa-solid fa-flask"></i> Demo / Test Mode</span>
+                </label>
+            </div>
+        </footer>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-sliders"></i> Backend API Settings</h3>
+                <button class="icon-btn-sm" id="closeModalBtn">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="apiUrlInput">Flask Backend URL Endpoint:</label>
+                    <input type="url" id="apiUrlInput" class="form-input" value="http://127.0.0.1:5000/predict" placeholder="http://127.0.0.1:5000/predict">
+                    <small class="form-help">Default Python Flask route handling Base64 JSON POST requests.</small>
+                </div>
+                <div class="form-group">
+                    <label for="frameRateSelect">Frame Capture Interval:</label>
+                    <select id="frameRateSelect" class="form-input">
+                        <option value="200">200 ms (Fast)</option>
+                        <option value="300" selected>300 ms (Default)</option>
+                        <option value="500">500 ms (Balanced)</option>
+                        <option value="1000">1000 ms (Low Traffic)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button id="testApiBtn" class="btn btn-secondary w-full">
+                        <i class="fa-solid fa-plug"></i> Test Connection to Flask Backend
+                    </button>
+                    <span id="testApiResult" class="test-result-text"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="saveSettingsBtn" class="btn btn-primary w-full">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
