@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isProcessingFrame = false;
     let frameCount = 0;
     let apiUrl = localStorage.getItem('faceDetect_apiUrl') || 'https://face-detection-3x3d.onrender.com/predict';
-    let frameIntervalMs = parseInt(localStorage.getItem('faceDetect_interval') || '300', 10);
+    let frameIntervalMs = parseInt(localStorage.getItem('faceDetect_interval') || '1500', 10);
     let isDemoMode = false;
     let canvasCtx = frameCanvas.getContext('2d');
 
@@ -101,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Request camera permissions with standard video constraints
             mediaStream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
+                    width: { ideal: 320 },
+                    height: { ideal: 240 },
                     facingMode: 'user'
                 },
                 audio: false
@@ -200,8 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             canvasCtx.drawImage(webcamVideo, 0, 0, frameCanvas.width, frameCanvas.height);
 
             // Export to JPEG Base64 data URL
-            const base64Image = frameCanvas.toDataURL('image/jpeg', 0.85);
-
+            const base64Image = frameCanvas.toDataURL('image/jpeg', 0.5);
             let data;
 
             if (isDemoMode) {
@@ -214,6 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             } else {
                 // Send Base64 frame to Flask backend
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                }, 15000);
+                
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
@@ -221,8 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     },
                     body: JSON.stringify({
                         image: base64Image
-                    })
+                    }),
+                    signal: controller.signal
                 });
+                
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`Server returned HTTP ${response.status}: ${response.statusText}`);
@@ -416,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Test ping with dummy 1x1 base64 transparent gif frame
             const dummyFrame = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
             const res = await fetch(testUrl, {
                 method: 'POST',
