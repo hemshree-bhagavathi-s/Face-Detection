@@ -1,473 +1,695 @@
 /**
- * Face Detection System using CNN
- * Frontend JavaScript Controller
+ * Face Detection System
+ * Frontend Controller
  * 
- * Handles webcam stream capture, Base64 frame extraction, 300ms interval polling,
- * POST requests to Python Flask API (/predict), dynamic UI updates, and error handling.
+ * Webcam -> Base64 Image -> Flask API -> Face Detected / No Face Detected
  */
 
-document.addEventListener('DOMContentLoaded', () => {
-    // UI Elements
-    const startCamBtn = document.getElementById('startCamBtn');
-    const stopCamBtn = document.getElementById('stopCamBtn');
-    const webcamVideo = document.getElementById('webcamVideo');
-    const frameCanvas = document.getElementById('frameCanvas');
-    const webcamPlaceholder = document.getElementById('webcamPlaceholder');
-    const viewportOverlay = document.getElementById('viewportOverlay');
-    const targetBox = document.getElementById('targetBox');
-    const apiLoadingOverlay = document.getElementById('apiLoadingOverlay');
-    const liveIndicatorWrap = document.getElementById('liveIndicatorWrap');
-    const statusDot = document.getElementById('statusDot');
-    const liveText = document.getElementById('liveText');
+document.addEventListener("DOMContentLoaded", () => {
 
-    // Status & Stats Elements
-    const detectionBadge = document.getElementById('detectionBadge');
-    const badgeIcon = document.getElementById('badgeIcon');
-    const badgeSpinner = document.getElementById('badgeSpinner');
-    const badgeText = document.getElementById('badgeText');
-    const confidenceValue = document.getElementById('confidenceValue');
-    const confidenceBar = document.getElementById('confidenceBar');
-    const confidenceHint = document.getElementById('confidenceHint');
-    const resVal = document.getElementById('resVal');
-    const latencyVal = document.getElementById('latencyVal');
-    const frameCountVal = document.getElementById('frameCountVal');
-    const activeApiUrlDisplay = document.getElementById('activeApiUrlDisplay');
-    const serverHealthDot = document.getElementById('serverHealthDot');
-    const serverHealthText = document.getElementById('serverHealthText');
 
-    // Banner & Modal Elements
-    const errorBanner = document.getElementById('errorBanner');
-    const errorMessage = document.getElementById('errorMessage');
-    const closeErrorBtn = document.getElementById('closeErrorBtn');
-    const settingsToggleBtn = document.getElementById('settingsToggleBtn');
-    const settingsModal = document.getElementById('settingsModal');
-    const closeModalBtn = document.getElementById('closeModalBtn');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const apiUrlInput = document.getElementById('apiUrlInput');
-    const frameRateSelect = document.getElementById('frameRateSelect');
-    const testApiBtn = document.getElementById('testApiBtn');
-    const testApiResult = document.getElementById('testApiResult');
-    const demoModeToggle = document.getElementById('demoModeToggle');
+    // ===============================
+    // UI ELEMENTS
+    // ===============================
 
-    // State Variables
+    const startCamBtn = document.getElementById("startCamBtn");
+    const stopCamBtn = document.getElementById("stopCamBtn");
+
+    const webcamVideo = document.getElementById("webcamVideo");
+    const frameCanvas = document.getElementById("frameCanvas");
+
+    const webcamPlaceholder = document.getElementById("webcamPlaceholder");
+
+    const detectionBadge = document.getElementById("detectionBadge");
+    const badgeIcon = document.getElementById("badgeIcon");
+    const badgeText = document.getElementById("badgeText");
+
+
+    const statusDot = document.getElementById("statusDot");
+    const liveText = document.getElementById("liveText");
+
+
+    const frameCountVal = document.getElementById("frameCountVal");
+    const latencyVal = document.getElementById("latencyVal");
+
+
+    const errorBanner = document.getElementById("errorBanner");
+    const errorMessage = document.getElementById("errorMessage");
+    const closeErrorBtn = document.getElementById("closeErrorBtn");
+
+
+    // ===============================
+    // VARIABLES
+    // ===============================
+
+
     let mediaStream = null;
+
     let captureInterval = null;
-    let isProcessingFrame = false;
+
     let frameCount = 0;
-    let predictionHistory = [];
-    let apiUrl = localStorage.getItem('faceDetect_apiUrl') || 'https://face-detection-3x3d.onrender.com/predict';
-    let frameIntervalMs = parseInt(localStorage.getItem('faceDetect_interval') || '1500', 10);
-    let isDemoMode = false;
-    let canvasCtx = frameCanvas.getContext('2d');
 
-    // Initialize Settings UI State
-    apiUrlInput.value = apiUrl;
-    activeApiUrlDisplay.textContent = apiUrl;
-    frameRateSelect.value = frameIntervalMs.toString();
+    let processing = false;
 
-    // Event Listeners
-    startCamBtn.addEventListener('click', startWebcam);
-    stopCamBtn.addEventListener('click', stopWebcam);
-    closeErrorBtn.addEventListener('click', hideError);
-    settingsToggleBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
-    closeModalBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
-    saveSettingsBtn.addEventListener('click', saveSettings);
-    testApiBtn.addEventListener('click', testApiConnection);
-    demoModeToggle.addEventListener('change', (e) => {
-        isDemoMode = e.target.checked;
-        showToast(isDemoMode ? 'Demo Mode Activated (Simulated CNN Inference)' : 'Real API Mode Activated', 'info');
-    });
 
-    window.addEventListener('offline', () => {
-        showError('No Internet Connection. Network requests will fail until reconnected.');
-    });
+    let apiUrl =
+    "https://face-detection-3x3d.onrender.com/predict";
 
-    /**
-     * Start Webcam Stream & Frame Sampling Loop
-     */
-    async function startWebcam() {
-        hideError();
 
-        // Check navigator compatibility
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showError('Webcam access is not supported by your browser. Please use modern Chrome, Edge, or Firefox.');
-            return;
+    const canvasContext =
+    frameCanvas.getContext("2d");
+
+
+
+    // ===============================
+    // BUTTON EVENTS
+    // ===============================
+
+
+    startCamBtn.addEventListener(
+        "click",
+        startCamera
+    );
+
+
+    stopCamBtn.addEventListener(
+        "click",
+        stopCamera
+    );
+
+
+    closeErrorBtn.addEventListener(
+        "click",
+        () => {
+            errorBanner.classList.add("hidden");
         }
+    );
+
+
+    // ===============================
+    // START CAMERA
+    // ===============================
+
+
+    async function startCamera() {
+
 
         try {
-            // Update UI to requesting state
-            startCamBtn.disabled = true;
-            startCamBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Connecting...</span>`;
 
-            // Request camera permissions with standard video constraints
-            mediaStream = await navigator.mediaDevices.getUserMedia({
+
+            startCamBtn.disabled = true;
+
+
+            mediaStream =
+            await navigator.mediaDevices.getUserMedia({
+
                 video: {
-                    width: { ideal: 320 },
-                    height: { ideal: 240 },
-                    facingMode: 'user'
+
+                    width: 320,
+                    height: 240,
+                    facingMode: "user"
+
                 },
-                audio: false
+
+                audio:false
+
             });
 
-            // Attach stream to video tag
-            webcamVideo.srcObject = mediaStream;
+
+
+            webcamVideo.srcObject =
+            mediaStream;
+
+
             await webcamVideo.play();
 
-            // Set canvas dimensions once metadata loaded
-            const videoWidth = 320;
-            const videoHeight = 240;
-            frameCanvas.width = videoWidth;
-            frameCanvas.height = videoHeight;
-            resVal.textContent = `${videoWidth}x${videoHeight}`;
 
-            // Update UI Layout
-            webcamPlaceholder.classList.add('hidden');
-            webcamVideo.classList.remove('hidden');
-            viewportOverlay.classList.add('active');
 
-            statusDot.className = 'pulse-dot green';
-            liveText.textContent = 'LIVE';
+            // Canvas size
 
-            startCamBtn.innerHTML = `<i class="fa-solid fa-play"></i> <span>Start Camera</span>`;
-            startCamBtn.disabled = true;
-            stopCamBtn.disabled = false;
+            frameCanvas.width = 320;
 
-            // Reset Counters & Start Loop
+            frameCanvas.height = 240;
+
+
+
+            // Show camera
+
+            webcamPlaceholder.classList.add("hidden");
+
+            webcamVideo.classList.remove("hidden");
+
+
+
+            // Live indicator
+
+            statusDot.className =
+            "pulse-dot green";
+
+
+            liveText.textContent =
+            "LIVE";
+
+
+
+            startCamBtn.disabled =
+            true;
+
+
+            stopCamBtn.disabled =
+            false;
+
+
+
             frameCount = 0;
-            frameCountVal.textContent = '0';
-            setStandbyStatus('Analyzing...');
 
-            // Clear previous interval if any
-            if (captureInterval) clearInterval(captureInterval);
+            frameCountVal.textContent =
+            "0";
 
-            // Capture frame every 300 ms
-            captureInterval = setInterval(captureAndSendFrame, frameIntervalMs);
 
-        } catch (err) {
-            startCamBtn.disabled = false;
-            startCamBtn.innerHTML = `<i class="fa-solid fa-play"></i> <span>Start Camera</span>`;
 
-            console.error('Camera Access Error:', err);
-            handleCameraError(err);
+            setStatus(
+                "Analyzing..."
+            );
+
+
+
+            // Start sending frames
+
+            if(captureInterval)
+            {
+                clearInterval(captureInterval);
+            }
+
+
+
+            captureInterval =
+            setInterval(
+                captureFrame,
+                1500
+            );
+
+
+
         }
+
+        catch(error)
+        {
+
+            console.error(
+                "Camera Error:",
+                error
+            );
+
+
+            showError(
+                "Camera permission denied or unavailable"
+            );
+
+
+            startCamBtn.disabled =
+            false;
+
+        }
+
+
     }
 
-    /**
-     * Stop Webcam Stream & Reset Viewport
-     */
-    function stopWebcam() {
-        if (captureInterval) {
-            clearInterval(captureInterval);
-            captureInterval = null;
+
+
+
+
+    // ===============================
+    // STOP CAMERA
+    // ===============================
+
+
+    function stopCamera(){
+
+
+
+        if(captureInterval)
+        {
+
+            clearInterval(
+                captureInterval
+            );
+
+            captureInterval=null;
+
         }
 
-        if (mediaStream) {
-            mediaStream.getTracks().forEach(track => track.stop());
-            mediaStream = null;
+
+
+        if(mediaStream)
+        {
+
+            mediaStream
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+
+            mediaStream=null;
+
         }
 
-        webcamVideo.pause();
-        webcamVideo.srcObject = null;
 
-        // Reset UI Components
-        webcamVideo.classList.add('hidden');
-        viewportOverlay.classList.remove('active');
-        webcamPlaceholder.classList.remove('hidden');
-        apiLoadingOverlay.classList.add('hidden');
 
-        statusDot.className = 'pulse-dot grey';
-        liveText.textContent = 'STANDBY';
+        webcamVideo.srcObject=null;
 
-        startCamBtn.disabled = false;
-        stopCamBtn.disabled = true;
 
-        resVal.textContent = '0x0';
-        latencyVal.textContent = '0 ms';
-        setStandbyStatus('Awaiting Input');
+
+        webcamVideo.classList.add(
+            "hidden"
+        );
+
+
+        webcamPlaceholder.classList.remove(
+            "hidden"
+        );
+
+
+
+        statusDot.className =
+        "pulse-dot grey";
+
+
+        liveText.textContent =
+        "STANDBY";
+
+
+
+        startCamBtn.disabled =
+        false;
+
+
+        stopCamBtn.disabled =
+        true;
+
+
+
+        setStatus(
+            "Awaiting Input"
+        );
+
+
+
     }
 
-    /**
-     * Capture Frame from Canvas, convert to Base64, POST to Backend
-     */
-    async function captureAndSendFrame() {
-        if (!mediaStream || isProcessingFrame) return;
+    // ===============================
+    // CAPTURE FRAME AND SEND TO API
+    // ===============================
 
-        isProcessingFrame = true;
-        apiLoadingOverlay.classList.remove('hidden');
-        const startTime = performance.now();
 
-        try {
-            // Draw current video frame to canvas
-            canvasCtx.drawImage(webcamVideo, 0, 0, frameCanvas.width, frameCanvas.height);
+    async function captureFrame(){
 
-            // Export to JPEG Base64 data URL
-            const base64Image = frameCanvas.toDataURL('image/jpeg', 0.5);
-            let data;
 
-            if (isDemoMode) {
-                // Simulated CNN Inference Mode
-                await new Promise(r => setTimeout(r, 90)); // Simulate 90ms latency
-                const hasFace = Math.random() > 0.15; // 85% chance face detected in demo
-                data = {
-                    face_detected: hasFace,
-                    confidence: hasFace ? (88.0 + Math.random() * 11.5) : (12.0 + Math.random() * 25.0)
-                };
-            } else {
-                // Send Base64 frame to Flask backend
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => {
-                    controller.abort();
-                }, 15000);
-                
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
+        if(!mediaStream || processing)
+        {
+            return;
+        }
+
+
+        processing = true;
+
+
+        let startTime =
+        performance.now();
+
+
+
+        try{
+
+
+            // Draw video frame on canvas
+
+            canvasContext.drawImage(
+                webcamVideo,
+                0,
+                0,
+                frameCanvas.width,
+                frameCanvas.height
+            );
+
+
+
+            // Convert image to Base64
+
+            let imageData =
+            frameCanvas.toDataURL(
+                "image/jpeg",
+                0.5
+            );
+
+
+
+            // Send image to Flask
+
+            let response =
+            await fetch(
+                apiUrl,
+                {
+
+                    method:"POST",
+
+                    headers:
+                    {
+                        "Content-Type":
+                        "application/json"
                     },
-                    body: JSON.stringify({
-                        image: base64Image
-                    }),
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
 
-                if (!response.ok) {
-                    throw new Error(`Server returned HTTP ${response.status}: ${response.statusText}`);
+
+                    body:
+                    JSON.stringify(
+                    {
+                        image:imageData
+                    })
+
                 }
+            );
 
-                data = await response.json();
+
+
+            if(!response.ok)
+            {
+
+                throw new Error(
+                    "Server error"
+                );
+
             }
 
-            const endTime = performance.now();
-            const latency = Math.round(endTime - startTime);
 
-            // Update stats
+
+            let data =
+            await response.json();
+
+
+
+            let endTime =
+            performance.now();
+
+
+
+            let latency =
+            Math.round(
+                endTime-startTime
+            );
+
+
+
+            latencyVal.textContent =
+            latency + " ms";
+
+
+
             frameCount++;
-            frameCountVal.textContent = frameCount.toString();
-            latencyVal.textContent = `${latency} ms`;
-            updateServerHealth(true, 'Connected');
 
-            // Render prediction results to UI
-            smoothPrediction(data);
 
-        } catch (err) {
-            console.warn('Frame submission failed:', err);
-            updateServerHealth(false, 'Offline');
-            
-            // Render backend error feedback in badge
-            detectionBadge.className = 'status-badge standby';
-            badgeIcon.className = 'fa-solid fa-plug-circle-xmark';
-            badgeSpinner.classList.add('hidden');
-            badgeText.textContent = 'Backend Offline';
-            
-            confidenceValue.textContent = '0.0%';
-            confidenceBar.style.width = '0%';
-            confidenceHint.textContent = `Unable to reach API at ${apiUrl}. Ensure Flask is running or switch to Demo Mode.`;
+            frameCountVal.textContent =
+            frameCount;
 
-        } finally {
-            isProcessingFrame = false;
-            apiLoadingOverlay.classList.add('hidden');
-        }
-    }
 
-    /**
-     * Update UI with Prediction Data from CNN Model
-     */
-    function smoothPrediction(data) {
 
-    predictionHistory.push(data.face_detected);
-    
-    if (predictionHistory.length > 5) {
-        predictionHistory.shift();
-    }
+            // Update result
 
-    let count = predictionHistory.filter(x => x === true).length;
+            updateDetection(
+                data.face_detected
+            );
 
-    let result = {
-        face_detected: count >= 3,
-        confidence: data.confidence
-    };
-    
-    renderDetectionResult(result);
-    }
 
-    function renderDetectionResult(data) {
-        if (!data || typeof data.face_detected === 'undefined') {
-            showError('Invalid JSON response format received from Backend API.');
-            return;
+
         }
 
-        const isFaceDetected = Boolean(data.face_detected);
-        
-        // Parse confidence score (handles decimal 0.975 or percentage 97.5)
-        let rawConfidence = parseFloat(data.confidence || 0);
-        if (rawConfidence <= 1.0 && rawConfidence > 0) {
-            rawConfidence *= 100;
-        }
-        const confidencePct = Math.min(100, Math.max(0, rawConfidence)).toFixed(1);
 
-        badgeSpinner.classList.add('hidden');
+        catch(error)
+        {
 
-        if (isFaceDetected) {
-            // GREEN BADGE: Face Detected
-            detectionBadge.className = 'status-badge detected';
-            badgeIcon.className = 'fa-solid fa-circle-check';
-            badgeText.textContent = 'Face Detected';
+            console.error(
+                "API Error:",
+                error
+            );
 
-            targetBox.className = 'face-target-box detected';
-            confidenceBar.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
-            confidenceBar.style.boxShadow = '0 0 12px rgba(16, 185, 129, 0.6)';
-            confidenceHint.textContent = 'CNN Model recognizes facial features in live viewport.';
-        } else {
-            // RED BADGE: No Face Detected
-            detectionBadge.className = 'status-badge not-detected';
-            badgeIcon.className = 'fa-solid fa-circle-xmark';
-            badgeText.textContent = 'No Face Detected';
 
-            targetBox.className = 'face-target-box not-detected';
-            confidenceBar.style.background = 'linear-gradient(90deg, #ef4444, #dc2626)';
-            confidenceBar.style.boxShadow = '0 0 12px rgba(239, 68, 68, 0.6)';
-            confidenceHint.textContent = 'No face detected in current frame. Align face with camera.';
+            setStatus(
+                "Backend Offline"
+            );
+
+
         }
 
-        // Update confidence bar width & text
-        confidenceValue.textContent = `${confidencePct}%`;
-        confidenceBar.style.width = `${confidencePct}%`;
-    }
 
-    /**
-     * Set Status Badge to Standby / Waiting State
-     */
-    function setStandbyStatus(text) {
-        detectionBadge.className = 'status-badge standby';
-        badgeIcon.className = 'fa-solid fa-pause';
-        badgeSpinner.classList.add('hidden');
-        badgeText.textContent = text;
-        targetBox.className = 'face-target-box';
+        finally
+        {
 
-        confidenceValue.textContent = '0.0%';
-        confidenceBar.style.width = '0%';
-        confidenceBar.style.background = 'linear-gradient(90deg, #3b82f6, #10b981)';
-    }
+            processing=false;
 
-    /**
-     * Update Server Status Indicator
-     */
-    function updateServerHealth(isOnline, statusMsg) {
-        if (isOnline) {
-            serverHealthDot.className = 'dot-indicator green';
-            serverHealthText.textContent = statusMsg || 'Connected';
-            serverHealthText.style.color = '#34d399';
-        } else {
-            serverHealthDot.className = 'dot-indicator red';
-            serverHealthText.textContent = statusMsg || 'Offline';
-            serverHealthText.style.color = '#f87171';
-        }
-    }
-
-    /**
-     * Handle Camera Specific Access Errors
-     */
-    function handleCameraError(err) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-            showError('Camera Permission Denied! Please click the lock icon in your browser address bar and grant camera access.');
-        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-            showError('No webcam hardware detected. Please connect a webcam device.');
-        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-            showError('Camera is already in use by another application. Please close other video apps.');
-        } else {
-            showError(`Camera Error: ${err.message || 'Unable to open camera stream.'}`);
-        }
-    }
-
-    /**
-     * Show Error Toast Banner
-     */
-    function showError(msg) {
-        errorMessage.textContent = msg;
-        errorBanner.classList.remove('hidden');
-    }
-
-    function hideError() {
-        errorBanner.classList.add('hidden');
-    }
-
-    /**
-     * Toast Helper
-     */
-    function showToast(msg, type = 'info') {
-        console.log(`[Toast ${type}]:`, msg);
-    }
-
-    /**
-     * Save API Settings
-     */
-    function saveSettings() {
-        const newUrl = apiUrlInput.value.trim();
-        const newInterval = parseInt(frameRateSelect.value, 10);
-
-        if (!newUrl) {
-            alert('Please enter a valid API URL endpoint.');
-            return;
         }
 
-        apiUrl = newUrl;
-        frameIntervalMs = newInterval;
 
-        localStorage.setItem('faceDetect_apiUrl', apiUrl);
-        localStorage.setItem('faceDetect_interval', frameIntervalMs);
-
-        activeApiUrlDisplay.textContent = apiUrl;
-        settingsModal.classList.add('hidden');
-
-        // Restart loop if camera is active
-        if (mediaStream) {
-            if (captureInterval) clearInterval(captureInterval);
-            captureInterval = setInterval(captureAndSendFrame, frameIntervalMs);
-        }
-
-        showToast('Settings saved successfully!');
     }
 
-    /**
-     * Test Backend API Endpoint Connection
-     */
-    async function testApiConnection() {
-        const testUrl = apiUrlInput.value.trim();
-        testApiResult.textContent = 'Testing connection...';
-        testApiResult.style.color = '#94a3b8';
+        // ===============================
+    // UPDATE DETECTION RESULT
+    // ===============================
 
-        try {
-            // Test ping with dummy 1x1 base64 transparent gif frame
-            const dummyFrame = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            const res = await fetch(testUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: dummyFrame }),
-                signal: controller.signal
-            });
+    function updateDetection(faceDetected){
 
-            clearTimeout(timeoutId);
 
-            if (res.ok) {
-                testApiResult.textContent = `✓ Success! Server responded with HTTP ${res.status}`;
-                testApiResult.style.color = '#34d399';
-                updateServerHealth(true, 'Connected');
-            } else {
-                testApiResult.textContent = `⚠ Server reachable, but returned HTTP ${res.status}`;
-                testApiResult.style.color = '#f59e0b';
-            }
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                testApiResult.textContent = '✕ Connection timed out after 4 seconds.';
-            } else {
-                testApiResult.textContent = `✕ Failed to connect to ${testUrl}. Check Flask server.`;
-            }
-            testApiResult.style.color = '#f87171';
+
+        if(faceDetected === true)
+        {
+
+            // ==========================
+            // FACE DETECTED - GREEN
+            // ==========================
+
+
+            detectionBadge.className =
+            "status-badge detected";
+
+
+            badgeIcon.className =
+            "fa-solid fa-circle-check";
+
+
+            badgeText.textContent =
+            "Face Detected";
+
+
+
         }
+
+
+        else
+        {
+
+
+            // ==========================
+            // NO FACE DETECTED - RED
+            // ==========================
+
+
+            detectionBadge.className =
+            "status-badge not-detected";
+
+
+            badgeIcon.className =
+            "fa-solid fa-circle-xmark";
+
+
+            badgeText.textContent =
+            "No Face Detected";
+
+
+
+        }
+
+
+
     }
+
+
+
+
+
+    // ===============================
+    // SET DEFAULT STATUS
+    // ===============================
+
+
+    function setStatus(message){
+
+
+
+        detectionBadge.className =
+        "status-badge standby";
+
+
+        badgeIcon.className =
+        "fa-solid fa-pause";
+
+
+        badgeText.textContent =
+        message;
+
+
+
+    }
+
+        // ===============================
+    // SHOW ERROR MESSAGE
+    // ===============================
+
+
+    function showError(message){
+
+
+        if(errorBanner && errorMessage)
+        {
+
+            errorMessage.textContent =
+            message;
+
+
+            errorBanner.classList.remove(
+                "hidden"
+            );
+
+        }
+
+
+    }
+
+
+
+
+
+    // ===============================
+    // HIDE ERROR MESSAGE
+    // ===============================
+
+
+    function hideError(){
+
+
+        if(errorBanner)
+        {
+
+            errorBanner.classList.add(
+                "hidden"
+            );
+
+        }
+
+
+    }
+
+
+
+
+
+    // ===============================
+    // CAMERA ERROR HANDLER
+    // ===============================
+
+
+    function handleCameraError(error){
+
+
+        if(error.name === "NotAllowedError")
+        {
+
+            showError(
+                "Camera permission denied. Please allow camera access."
+            );
+
+        }
+
+
+        else if(error.name === "NotFoundError")
+        {
+
+            showError(
+                "No camera device found."
+            );
+
+        }
+
+
+        else
+        {
+
+            showError(
+                "Unable to access camera."
+            );
+
+        }
+
+
+    }
+
+
+
+
+
+    // ===============================
+    // INTERNET STATUS CHECK
+    // ===============================
+
+
+    window.addEventListener(
+        "offline",
+        ()=>{
+
+            showError(
+                "Internet connection lost."
+            );
+
+        }
+    );
+
+
+
+    window.addEventListener(
+        "online",
+        ()=>{
+
+            hideError();
+
+        }
+    );
+
+
+
 });
+
+    // ===============================
+    // BUTTON EVENTS
+    // ===============================
+
+
+    startCamBtn.addEventListener(
+        "click",
+        startCamera
+    );
+
+
+    stopCamBtn.addEventListener(
+        "click",
+        stopCamera
+    );
+
+
+
+    // Initial state
+
+    stopCamBtn.disabled = true;
+
+
+    setStatus(
+        "Awaiting Input"
+    );
