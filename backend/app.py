@@ -187,11 +187,10 @@ def predict():
         score = float(prediction[0][0])
 
         print("Prediction Score:", score)
-        # Your model classes:
-        # 0 = human_faces
-        # 1 = non_human_faces
-        
-        face_detected = score < 0.5
+
+        THRESHOLD = 0.60
+
+        face_detected = score < THRESHOLD
 
         if face_detected:
             confidence = round((1 - score) * 100, 1)
