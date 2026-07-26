@@ -282,19 +282,14 @@ def predict():
 
 )
 
-
-
-        # If no face found
-
-        if len(faces) == 0:
-
+        if len(faces) > 0:
             return jsonify({
-
+                "face_detected": True
+                })
+        else:
+            return jsonify({
                 "face_detected": False
-
-            }), 200
-
-
+                })
 
 
         # Select largest face
