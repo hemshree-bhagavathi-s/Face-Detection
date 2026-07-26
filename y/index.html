@@ -117,18 +117,7 @@
                     </div>
                 </div>
             </section>
-
-            <!-- Right Panel: Status & Confidence Score -->
-            <section class="card status-card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <i class="fa-solid fa-chart-simple"></i>
-                        <h2>Detection Results</h2>
-                    </div>
-                    <button class="settings-toggle-btn" id="settingsToggleBtn" title="Configure API Settings">
-                        <i class="fa-solid fa-gear"></i>
-                    </button>
-                </div>
+            
 
                 <div class="status-content-body">
                     <!-- Status Badge Container -->
@@ -138,20 +127,6 @@
                             <i class="fa-solid fa-pause" id="badgeIcon"></i>
                             <span id="badgeText">Awaiting Input</span>
                         </span>
-                    </div>
-
-                    <!-- Confidence Meter Ring / Bar -->
-                    <div class="confidence-section">
-                        <div class="confidence-header">
-                            <span class="confidence-title">CNN Model Confidence</span>
-                            <span class="confidence-percent" id="confidenceValue">0.0%</span>
-                        </div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar-fill" id="confidenceBar" style="width: 0%;"></div>
-                        </div>
-                        <p class="confidence-hint" id="confidenceHint">
-                            Start the camera to receive real-time confidence scores from the Flask backend.
-                        </p>
                     </div>
 
                     <!-- Server Connection Details Box -->

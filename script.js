@@ -20,17 +20,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const webcamPlaceholder = document.getElementById("webcamPlaceholder");
 
-    const detectionBadge = document.getElementById("detectionBadge");
-    const badgeIcon = document.getElementById("badgeIcon");
-    const badgeText = document.getElementById("badgeText");
-
+    const detectionBadge = document.getElementById("detectionBadge") || {};
+    const badgeIcon = document.getElementById("badgeIcon") || {};
+    const badgeText = document.getElementById("badgeText") || {textContent:""};
 
     const statusDot = document.getElementById("statusDot");
     const liveText = document.getElementById("liveText");
 
 
-    const frameCountVal = document.getElementById("frameCountVal");
-    const latencyVal = document.getElementById("latencyVal");
+    const frameCountVal = document.getElementById("frameCountVal") || {textContent:""};
+    const latencyVal = document.getElementById("latencyVal") || {textContent:""};
 
 
     const errorBanner = document.getElementById("errorBanner");
