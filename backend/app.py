@@ -188,16 +188,9 @@ def predict():
 
         print("Prediction Score:", score)
 
-        # Your model classess
-        # # 0 = human_faces
-        # # 1 = non_human_faces
-        
         face_detected = score < 0.5
 
-        if face_detected:
-            confidence = round((1 - score) * 100, 1)
-        else:
-            confidence = round(score * 100, 1)
+        confidence = round((1 - score) * 100, 1)
 
         return jsonify({
             "face_detected": face_detected,
