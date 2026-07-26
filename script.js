@@ -483,12 +483,9 @@ if(closeErrorBtn){
             "fa-solid fa-circle-check";
 
 
-            badgeText.textContent =
-            "Face Detected";
-
-
-
-        }
+            if(badgeText){
+                badgeText.textContent = "Face Detected";
+            }
 
 
         else
@@ -508,19 +505,11 @@ if(closeErrorBtn){
             "fa-solid fa-circle-xmark";
 
 
-            badgeText.textContent =
-            "No Face Detected";
-
-
-
+            if(badgeText){
+                badgeText.textContent = "No Face Detected";
+            }
         }
-
-
-
     }
-
-
-
 
 
     // ===============================
@@ -530,22 +519,24 @@ if(closeErrorBtn){
 
     function setStatus(message){
 
-
-
+    if(detectionBadge){
         detectionBadge.className =
         "status-badge standby";
+    }
 
 
+    if(badgeIcon){
         badgeIcon.className =
         "fa-solid fa-pause";
+    }
 
 
+    if(badgeText){
         badgeText.textContent =
         message;
-
-
-
     }
+
+}
 
         // ===============================
     // SHOW ERROR MESSAGE
