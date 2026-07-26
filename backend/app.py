@@ -56,6 +56,9 @@ if face_cascade.empty():
 cnn_model = None
 TARGET_SIZE = (224, 224)  # Default fallback input target size (Width, Height)
 
+# Store previous detection results for stability
+face_history = []
+
 try:
     if os.path.exists(MODEL_PATH):
         cnn_model = tf.keras.models.load_model(MODEL_PATH)
@@ -205,16 +208,22 @@ def predict():
         faces = face_cascade.detectMultiScale(
             gray_eq,
             scaleFactor=1.1,
-            minNeighbors=4,
+            minNeighbors=6,
             minSize=(30, 30)
         )
 
         # If Haar Cascade detects NO faces, return face_detected: false
+        global face_history
         if len(faces) == 0:
-            return jsonify({
-                "face_detected": False,
-                "confidence": 0
-            }), 200
+            face_history.append(0)
+
+            if len(face_history) > 10:
+                face_history.pop(0)
+
+                return jsonify({
+                    "face_detected": sum(face_history) >= 5,
+                    "confidence": 0
+                    }), 200
 
         # Select the largest face region if multiple faces detected
         largest_face = max(faces, key=lambda rect: rect[2] * rect[3])
@@ -249,7 +258,8 @@ def predict():
         # Handles binary output shape (1, 1) or softmax categorical shape (1, 2)
         if raw_prediction.shape[-1] == 1:
             raw_score = float(raw_prediction[0][0])
-            is_face = raw_score >= 0.5
+            is_face = raw_score >= 0.75
+            
             confidence_val = raw_score if is_face else (1.0 - raw_score)
         else:
             # Categorical prediction (e.g. index 1 = face)
@@ -261,11 +271,15 @@ def predict():
 
         # Format confidence score percentage rounded to 1 decimal place (e.g. 96.4)
         confidence_percentage = round(float(confidence_val * 100), 1)
+        face_history.append(1)
 
-        return jsonify({
-            "face_detected": True,
-            "confidence": confidence_percentage
-        }), 200
+        if len(face_history) > 10:
+            face_history.pop(0)
+
+            return jsonify({
+                "face_detected": sum(face_history) >= 5,
+                "confidence": confidence_percentage
+                }), 200
 
     except Exception as proc_err:
         logging.error(f"Prediction Processing Error: {str(proc_err)}", exc_info=True)
