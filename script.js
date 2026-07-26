@@ -60,30 +60,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
 
-    // ===============================
-    // BUTTON EVENTS
-    // ===============================
+  // ===============================
+  // BUTTON EVENTS
+  // ===============================
 
-
+if(startCamBtn){
     startCamBtn.addEventListener(
         "click",
         startCamera
     );
+}
 
 
+if(stopCamBtn){
     stopCamBtn.addEventListener(
         "click",
         stopCamera
     );
+}
 
 
+if(closeErrorBtn){
     closeErrorBtn.addEventListener(
         "click",
         () => {
-            errorBanner.classList.add("hidden");
+
+            if(errorBanner){
+                errorBanner.classList.add("hidden");
+            }
+
         }
     );
-
+}
 
     // ===============================
     // START CAMERA
