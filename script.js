@@ -111,11 +111,9 @@ if(closeErrorBtn){
             await navigator.mediaDevices.getUserMedia({
 
                 video: {
-
-                    width: 320,
-                    height: 240,
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
                     facingMode: "user"
-
                 },
 
                 audio:false
@@ -134,9 +132,9 @@ if(closeErrorBtn){
 
             // Canvas size
 
-            frameCanvas.width = 320;
-
-            frameCanvas.height = 240;
+            frameCanvas.width = 640;
+            
+            frameCanvas.height = 480;
 
 
 

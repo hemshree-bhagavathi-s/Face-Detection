@@ -240,6 +240,14 @@ def predict():
             data["image"]
         )
 
+        # Fix mobile portrait orientation
+        height, width = image.shape[:2]
+
+        if height > width:
+            image = cv2.rotate(
+                image,
+                cv2.ROTATE_90_CLOCKWISE
+                )
 
 
         # Convert to grayscale
@@ -266,13 +274,13 @@ def predict():
 
             gray,
 
-            scaleFactor=1.1,
+            scaleFactor=1.05,
 
-            minNeighbors=6,
+            minNeighbors=5,
 
-            minSize=(30,30)
+            minSize=(50,50)
 
-        )
+)
 
 
 
@@ -395,10 +403,13 @@ def predict():
         # ======================================================
 
 
-        THRESHOLD = 0.60
+        THRESHOLD = 0.70
 
 
         face_detected = score < THRESHOLD
+
+        print("CNN SCORE:", score)
+        print("FACE RESULT:", face_detected)
 
 
 
