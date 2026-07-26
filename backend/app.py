@@ -186,10 +186,12 @@ def predict():
 
         score = float(prediction[0][0])
 
+        print("Prediction Score:", score)
+
         face_detected = score >= 0.85
 
         confidence = round(score * 100, 1)
-
+        
         return jsonify({
             "face_detected": face_detected,
             "confidence": confidence

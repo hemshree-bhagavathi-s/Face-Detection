@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let captureInterval = null;
     let isProcessingFrame = false;
     let frameCount = 0;
+    let predictionHistory = [];
     let apiUrl = localStorage.getItem('faceDetect_apiUrl') || 'https://face-detection-3x3d.onrender.com/predict';
     let frameIntervalMs = parseInt(localStorage.getItem('faceDetect_interval') || '1500', 10);
     let isDemoMode = false;
@@ -113,8 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await webcamVideo.play();
 
             // Set canvas dimensions once metadata loaded
-            const videoWidth = webcamVideo.videoWidth || 640;
-            const videoHeight = webcamVideo.videoHeight || 480;
+            const videoWidth = 320;
+            const videoHeight = 240;
             frameCanvas.width = videoWidth;
             frameCanvas.height = videoHeight;
             resVal.textContent = `${videoWidth}x${videoHeight}`;
@@ -248,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateServerHealth(true, 'Connected');
 
             // Render prediction results to UI
-            renderDetectionResult(data);
+            smoothPrediction(data);
 
         } catch (err) {
             console.warn('Frame submission failed:', err);
@@ -273,6 +274,24 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Update UI with Prediction Data from CNN Model
      */
+    function smoothPrediction(data) {
+
+    predictionHistory.push(data.face_detected);
+    
+    if (predictionHistory.length > 5) {
+        predictionHistory.shift();
+    }
+
+    let count = predictionHistory.filter(x => x === true).length;
+
+    let result = {
+        face_detected: count >= 3,
+        confidence: data.confidence
+    };
+    
+    renderDetectionResult(result);
+    }
+
     function renderDetectionResult(data) {
         if (!data || typeof data.face_detected === 'undefined') {
             showError('Invalid JSON response format received from Backend API.');
