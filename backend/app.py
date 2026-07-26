@@ -21,6 +21,9 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import tensorflow as tf
 
+tf.config.set_visible_devices([], 'GPU')
+tf.keras.backend.clear_session()
+
 # Configure Logging for production monitoring
 logging.basicConfig(
     level=logging.INFO,
@@ -54,10 +57,7 @@ if face_cascade.empty():
 
 # 2. Load Trained Keras CNN Model (face_detector.h5)
 cnn_model = None
-TARGET_SIZE = (224, 224)  # Default fallback input target size (Width, Height)
-
-# Store previous detection results for stability
-face_history = []
+TARGET_SIZE = (128, 128)  # Default fallback input target size (Width, Height)
 
 try:
     if os.path.exists(MODEL_PATH):
@@ -73,7 +73,7 @@ try:
                 TARGET_SIZE = (w, h)
                 logging.info(f"📐 CNN Model Input Dimensions Detected: {TARGET_SIZE[0]}x{TARGET_SIZE[1]}")
         except Exception as shape_err:
-            logging.warning(f"Could not automatically parse input shape: {shape_err}. Using default 224x224.")
+            logging.warning(f"Could not automatically parse input shape: {shape_err}. Using default 128x128.")
     else:
         logging.error(f"❌ Model file '{MODEL_PATH}' not found!")
 except Exception as model_err:
@@ -116,7 +116,7 @@ def preprocess_face_crop(face_bgr, target_size=TARGET_SIZE):
     """
     Preprocesses cropped face BGR image for CNN model input:
     1. Converts BGR to RGB
-    2. Resizes to model target resolution (e.g. 224x224)
+    2. Resizes to model target resolution (e.g. 128x128)
     3. Normalizes pixel values to [0.0, 1.0] range
     4. Expands dimensions to create batch tensor of shape (1, H, W, 3)
     """
@@ -208,9 +208,9 @@ def predict():
         faces = face_cascade.detectMultiScale(
             gray_eq,
             scaleFactor=1.1,
-            minNeighbors=6,
-            minSize=(30, 30)
-        )
+            minNeighbors=10,
+            minSize=(50, 50)
+            )
 
         # If Haar Cascade detects NO faces, return face_detected: false
         global face_history
@@ -258,7 +258,7 @@ def predict():
         # Handles binary output shape (1, 1) or softmax categorical shape (1, 2)
         if raw_prediction.shape[-1] == 1:
             raw_score = float(raw_prediction[0][0])
-            is_face = raw_score >= 0.75
+            is_face = raw_score >= 0.85
             
             confidence_val = raw_score if is_face else (1.0 - raw_score)
         else:
